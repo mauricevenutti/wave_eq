@@ -93,14 +93,21 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bor
 <div class="panel">
   <div class="bar">
     <div class="seg" role="tablist">
-      <button id="mF" class="on">Fourier</button><button id="mD">d'Alembert</button>
+      <button id="mF" class="on">Fourier</button><button id="mD">Wellenausbreitung</button>
     </div>
-    <div class="group" id="presets">
-      <button class="thumb" data-p="tri" title="Dreieck"><canvas></canvas></button>
-      <button class="thumb" data-p="box" title="Rechteck"><canvas></canvas></button>
-      <button class="thumb" data-p="gauss" title="Puls"><canvas></canvas></button>
-      <button class="thumb" data-p="sine" title="Grundmode"><canvas></canvas></button>
-      <button class="thumb" data-p="draw" title="Zeichnen"><canvas></canvas></button>
+    <div class="group" style="flex-wrap:wrap;gap:14px">
+      <div class="group" id="instr">
+        <button data-p="flute">Flöte</button>
+        <button data-p="oboe">Oboe</button>
+        <button data-p="violin">Violine</button>
+      </div>
+      <div class="group" id="presets">
+        <button class="thumb" data-p="tri" title="Dreieck"><canvas></canvas></button>
+        <button class="thumb" data-p="box" title="Rechteck"><canvas></canvas></button>
+        <button class="thumb" data-p="gauss" title="Puls"><canvas></canvas></button>
+        <button class="thumb" data-p="sine" title="Grundmode"><canvas></canvas></button>
+        <button class="thumb" data-p="draw" title="Zeichnen"><canvas></canvas></button>
+      </div>
     </div>
   </div>
 
@@ -138,10 +145,9 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bor
       <p>Jede Mode ist eine stehende Welle: Sinus im Ort, Cosinus in der Zeit.</p>
       <p class="eq"><em>c<sub>k</sub></em> sin(<em>k</em>&pi;<em>x</em>/<em>L</em>) &middot; cos(<em>k</em>&pi;<em>ct</em>/<em>L</em>)</p>
       <p>Sie schwingt also mit der Frequenz <em>k</em>&middot;<em>c</em>/(2<em>L</em>), einem ganzzahligen Vielfachen des Grundtons.
-        Für den Ton &#9834; bleibt nur der zeitliche Teil: Jede Mode trägt mit ihrer Amplitude <em>c<sub>k</sub></em> bei, und der Grundton <em>c</em>/(2<em>L</em>) wird auf 220&nbsp;Hz gesetzt:</p>
-      <p class="eq"><em>p</em>(<em>t</em>) = &sum;<sub><em>k</em>=1</sub><sup><em>n</em></sup> <em>c<sub>k</sub></em> cos(2&pi; &middot; <em>k</em>&middot;220&nbsp;Hz &middot; <em>t</em>)</p>
-      <p>Das Vorzeichen von <em>c<sub>k</sub></em> ist nur eine Phase und nicht hörbar. Die Gesamtlautstärke wird normiert.</p>
-      <div class="tw"><table>
+        Für den Ton &#9834; bleibt nur der zeitliche Teil: Jede Mode trägt mit ihrer Amplitude <em>c<sub>k</sub></em> bei, und der Grundton <em>c</em>/(2<em>L</em>) wird auf 440&nbsp;Hz gesetzt:</p>
+      <p class="eq"><em>p</em>(<em>t</em>) = &sum;<sub><em>k</em>=1</sub><sup><em>n</em></sup> <em>c<sub>k</sub></em> cos(2&pi; &middot; <em>k</em>&middot;440&nbsp;Hz &middot; <em>t</em>)</p>
+      <p>Das Vorzeichen von <em>c<sub>k</sub></em> ist nur eine Phase und nicht hörbar. Die Gesamtlautstärke wird normiert.</p>      <div class="tw"><table>
         <thead><tr><th><em>k</em></th><th>Mode</th><th><em>c<sub>k</sub></em></th><th>Frequenz</th><th>Ton</th><th>Stärke</th></tr></thead>
         <tbody id="tbody"></tbody>
       </table></div>
@@ -172,13 +178,31 @@ const shapes = {
   sine:  x => 0.9 * Math.sin(Math.PI * x / L),
   draw:  () => 0
 };
+/* Instruments: measured partial amplitudes of the note A4 (440 Hz), first 12 partials,
+   normalised to the strongest one. Source: SHARC timbre database (G. Sandell),
+   via hackage.haskell.org/package/sharc-timbre (flute_vibrato, oboe, violin_vibrato).
+   f(x) = Σ a_k sin(kπx/L), so that c_k = a_k (up to normalisation). */
+const INSTR = {
+  flute:  [1, 0.7225, 0.1397, 0.1673, 0.1059, 0.0249, 0.0092, 0.0122, 0.0054, 0.0038, 0.0020, 0.0023],
+  oboe:   [0.2721, 1, 0.5005, 0.5052, 0.0925, 0.1949, 0.0664, 0.1391, 0.0307, 0.0213, 0.0552, 0.0076],
+  violin: [1, 0.0708, 0.2369, 0.1889, 0.5061, 0.0438, 0.1806, 0.1388, 0.1887, 0.0233, 0.0248, 0.0100]
+};
+for (const [name, a] of Object.entries(INSTR))
+  shapes[name] = x => a.reduce((s, ak, i) => s + ak * Math.sin((i + 1) * Math.PI * x / L), 0);
+
 function loadPreset(p) {
   st.preset = p;
   const g = shapes[p];
   for (let i = 0; i <= M; i++) f[i] = g(i * L / M);
   f[0] = f[M] = 0;
+  if (INSTR[p]) {
+    let mx = 0; for (let i = 0; i <= M; i++) mx = Math.max(mx, Math.abs(f[i]));
+    for (let i = 0; i <= M; i++) f[i] /= mx;
+    const need = INSTR[p].length;              // play all partials of the instrument
+    if (st.n < need) { st.n = need; nIn.value = need; nv.textContent = need; }
+  }
   computeCoef();
-  document.querySelectorAll('#presets button').forEach(b => b.classList.toggle('on', b.dataset.p === p));
+  document.querySelectorAll('button[data-p]').forEach(b => b.classList.toggle('on', b.dataset.p === p));
 }
 function computeCoef() {
   const dx = L / M;
@@ -341,14 +365,14 @@ function setMode(m) {
 
 $('mF').onclick = () => setMode('F');
 $('mD').onclick = () => setMode('D');
-document.querySelectorAll('#presets button').forEach(b => b.onclick = () => { setPlaying(false); setT(0); loadPreset(b.dataset.p); draw(); });
+document.querySelectorAll('button[data-p]').forEach(b => b.onclick = () => { setPlaying(false); setT(0); loadPreset(b.dataset.p); draw(); });
 play.onclick = () => setPlaying(!st.playing);
 $('reset').onclick = () => { setPlaying(false); setT(0); draw(); };
 tIn.oninput = () => { setPlaying(false); setT(+tIn.value); draw(); };
 nIn.oninput = () => { st.n = +nIn.value; nv.textContent = st.n; dirty = true; draw(); };
 
 /* ---------- sound: sustained tone from c_1..c_n ---------- */
-const F0 = 220, VOL = 0.2, snd = $('snd');
+const F0 = 440, VOL = 0.2, snd = $('snd');
 let actx = null, osc = null, gain = null, soundOn = false;
 function updateSound() {
   if (!actx) return;
@@ -425,7 +449,7 @@ cv.addEventListener('pointerdown', e => {
   if (nearApex(p)) drag = 'apex';
   else if (inString(p)) {
     drag = 'draw'; lastPt = null;
-    if (st.preset !== 'draw') { st.preset = 'draw'; document.querySelectorAll('#presets button').forEach(b => b.classList.toggle('on', b.dataset.p === 'draw')); }
+    if (st.preset !== 'draw') { st.preset = 'draw'; document.querySelectorAll('button[data-p]').forEach(b => b.classList.toggle('on', b.dataset.p === 'draw')); }
     paint(p);
   } else return;
   setPlaying(false); setT(0);
