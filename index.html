@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wellengleichung</title>
+<style>
+:root{
+  --ink:#2b3340; --mute:#8b939d;
+  --u:#1f2d3d; --s:#d23f2a; --h:#b4bbc4; --f0:#9aa3ad; --r:#e8871e; --l:#3c9f3c;
+}
+*{box-sizing:border-box}
+html{background:#e4e7eb}
+body{margin:0;padding:28px 16px;min-height:100vh;color:var(--ink);
+  background:linear-gradient(#f2f3f5,#dfe3e8) fixed;
+  font:13px/1.3 "Lucida Grande","Helvetica Neue",Helvetica,Arial,sans-serif}
+.panel{max-width:960px;margin:0 auto;background:#fff;border:1px solid #b7bec7;border-radius:6px;
+  box-shadow:0 2px 8px rgba(0,0,0,.12);overflow:hidden}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:8px 12px;background:linear-gradient(#fdfdfd,#e8ebee);border-bottom:1px solid #c8cdd4}
+.group{display:inline-flex;gap:6px}
+
+button{font:inherit;color:#333;padding:4px 12px;min-height:26px;border:1px solid #a9b0b9;border-radius:4px;cursor:pointer;
+  background:linear-gradient(#fefefe,#e2e5e9);box-shadow:inset 0 1px 0 #fff,0 1px 0 rgba(255,255,255,.8);text-shadow:0 1px 0 #fff}
+button:hover{background:linear-gradient(#fff,#eaedf0)}
+button:active,button.on{background:linear-gradient(#d6dbe1,#e9ecef);box-shadow:inset 0 1px 3px rgba(0,0,0,.22)}
+button:focus-visible{outline:2px solid #7aa7e6;outline-offset:1px}
+
+.seg{display:inline-flex;border:1px solid #9aa3ae;border-radius:4px;overflow:hidden;box-shadow:0 1px 0 #fff}
+.seg button{border:0;border-radius:0;box-shadow:inset 0 1px 0 #fff;min-width:96px}
+.seg button+button{border-left:1px solid #9aa3ae}
+.seg button.on{color:#fff;text-shadow:0 -1px 0 rgba(0,0,0,.3);
+  background:linear-gradient(#6c9fe0,#3a6ec0);box-shadow:inset 0 1px 2px rgba(0,0,0,.25)}
+
+button.thumb{padding:2px 4px;line-height:0}
+button.thumb canvas{width:40px;height:22px}
+
+.plot{padding:12px 12px 4px}
+.plot canvas{display:block;width:100%;touch-action:none}
+
+.ctrl{display:flex;gap:28px;padding:10px 16px 16px;flex-wrap:wrap;align-items:flex-start}
+.rows{flex:1 1 420px;display:grid;grid-template-columns:auto minmax(18px,auto) 1fr 44px;gap:8px 8px;align-items:center}
+.btns{display:inline-flex;gap:6px}
+.btns button{width:34px;padding:4px 0}
+.lab{font:italic 15px Georgia,"Times New Roman",serif;color:#555;text-align:center}
+.val{font-variant-numeric:tabular-nums;color:#555;text-align:right}
+
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:20px;margin:0;background:transparent}
+input[type=range]:focus{outline:none}
+input[type=range]::-webkit-slider-runnable-track{height:5px;border-radius:3px;border:1px solid #a7aeb7;
+  background:linear-gradient(#c6ccd3,#e5e8eb);box-shadow:inset 0 1px 2px rgba(0,0,0,.15)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;margin-top:-6.5px;border-radius:50%;
+  border:1px solid #8a939e;background:linear-gradient(#fff,#d9dde2);box-shadow:0 1px 2px rgba(0,0,0,.25)}
+input[type=range]:focus-visible::-webkit-slider-thumb{border-color:#3a6ec0}
+input[type=range]::-moz-range-track{height:5px;border-radius:3px;border:1px solid #a7aeb7;background:linear-gradient(#c6ccd3,#e5e8eb)}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;border:1px solid #8a939e;background:linear-gradient(#fff,#d9dde2);box-shadow:0 1px 2px rgba(0,0,0,.25)}
+
+.legend{display:grid;gap:6px;min-width:170px;padding-top:2px}
+.legend label{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font:15px Georgia,"Times New Roman",serif;color:#333}
+.legend input{position:absolute;opacity:0;pointer-events:none}
+.legend i{width:13px;height:13px;border-radius:2px;border:1px solid rgba(0,0,0,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+.legend input:not(:checked)+i{background:#fff!important}
+.legend input:not(:checked)~span{color:#aaa}
+.legend input:focus-visible+i{outline:2px solid #7aa7e6;outline-offset:1px}
+.legend sub{font-size:.7em}
+[hidden]{display:none!important}
+
+.info{border-top:1px solid #d3d8de}
+.info summary{cursor:pointer;list-style:none;padding:7px 16px;font-size:12px;color:#555;user-select:none;
+  background:linear-gradient(#fafbfc,#eceff2);text-shadow:0 1px 0 #fff}
+.info summary::-webkit-details-marker{display:none}
+.info summary::before{content:'\25B8';display:inline-block;width:14px;color:#8b939d;transition:transform .15s}
+.info[open] summary::before{transform:rotate(90deg)}
+.info[open] summary{border-bottom:1px solid #dde1e6}
+.info .body{padding:10px 16px 16px;background:#fbfbfc;color:#444}
+.info p{margin:6px 0;max-width:720px}
+.info .eq{font:15px Georgia,"Times New Roman",serif;color:#333;margin:8px 0}
+.info table{border-collapse:collapse;width:100%;font-size:12px;margin-top:12px;font-variant-numeric:tabular-nums}
+.info th,.info td{padding:3px 8px;border-bottom:1px solid #e4e7eb;text-align:right;white-space:nowrap}
+.info th{font-weight:normal;color:#8b939d;border-bottom-color:#cfd4da}
+.info th:last-child,.info td:last-child{text-align:left;width:40%}
+.info td svg{display:block;margin-left:auto}
+.amp{height:8px;border-radius:1px;background:var(--s);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+.info .tw{max-height:320px;overflow:auto}
+
+@media (max-width:560px){
+  .seg button{min-width:0}
+  .ctrl{padding:10px 10px 14px}
+}
+</style>
+</head>
+<body>
+<div class="panel">
+  <div class="bar">
+    <div class="seg" role="tablist">
+      <button id="mF" class="on">Fourier</button><button id="mD">d'Alembert</button>
+    </div>
+    <div class="group" id="presets">
+      <button class="thumb" data-p="tri" title="Dreieck"><canvas></canvas></button>
+      <button class="thumb" data-p="box" title="Rechteck"><canvas></canvas></button>
+      <button class="thumb" data-p="gauss" title="Puls"><canvas></canvas></button>
+      <button class="thumb" data-p="sine" title="Grundmode"><canvas></canvas></button>
+      <button class="thumb" data-p="draw" title="Zeichnen"><canvas></canvas></button>
+    </div>
+  </div>
+
+  <div class="plot">
+    <canvas id="cv"></canvas>
+  </div>
+
+  <div class="ctrl">
+    <div class="rows">
+      <span class="btns"><button id="play" title="Start/Pause">&#9654;</button><button id="reset" title="t = 0">&#8634;</button><button id="snd" title="Ton">&#9834;</button></span>
+      <span class="lab">t</span><input id="t" type="range" min="0" max="2" step="0.001" value="0"><span class="val" id="tv">0.00</span>
+
+      <span data-only="F"></span>
+      <span class="lab" data-only="F">n</span><input data-only="F" id="n" type="range" min="1" max="50" step="1" value="5"><span data-only="F" class="val" id="nv">5</span>
+
+      <span></span>
+      <span class="lab" style="font:13px 'Lucida Grande','Helvetica Neue',Helvetica,Arial,sans-serif">Tempo</span><input id="sp" type="range" min="0" max="100" step="1" value="50"><span></span>
+    </div>
+    <div class="legend" id="legend">
+      <label><input type="checkbox" data-k="u" checked><i style="background:var(--u)"></i><span><em>u</em>(<em>x</em>,<em>t</em>)</span></label>
+      <label data-only="F"><input type="checkbox" data-k="s" checked><i style="background:var(--s)"></i><span><em>S<sub>n</sub></em>(<em>x</em>,<em>t</em>)</span></label>
+      <label data-only="F"><input type="checkbox" data-k="h" checked><i style="background:var(--h)"></i><span><em>c<sub>k</sub></em> sin&thinsp;cos</span></label>
+      <label data-only="D"><input type="checkbox" data-k="r" checked><i style="background:var(--r)"></i><span>&frac12;<em>f</em>*(<em>x</em>&minus;<em>ct</em>)</span></label>
+      <label data-only="D"><input type="checkbox" data-k="l" checked><i style="background:var(--l)"></i><span>&frac12;<em>f</em>*(<em>x</em>+<em>ct</em>)</span></label>
+      <label><input type="checkbox" data-k="f0"><i style="background:var(--f0)"></i><span><em>f</em>(<em>x</em>)</span></label>
+    </div>
+  </div>
+
+  <details class="info" id="info">
+    <summary>Zerlegung und Töne</summary>
+    <div class="body">
+      <p>Die Anfangsauslenkung wird in die Eigenschwingungen der Saite zerlegt:</p>
+      <p class="eq"><em>f</em>(<em>x</em>) &asymp; &sum;<sub><em>k</em>=1</sub><sup><em>n</em></sup> <em>c<sub>k</sub></em> sin(<em>k</em>&pi;<em>x</em>/<em>L</em>),
+        &nbsp;&nbsp; <em>c<sub>k</sub></em> = <sup>2</sup>&frasl;<sub><em>L</em></sub> &int;<sub>0</sub><sup><em>L</em></sup> <em>f</em>(<em>x</em>) sin(<em>k</em>&pi;<em>x</em>/<em>L</em>) d<em>x</em></p>
+      <p>Jede Mode ist eine stehende Welle: Sinus im Ort, Cosinus in der Zeit.</p>
+      <p class="eq"><em>c<sub>k</sub></em> sin(<em>k</em>&pi;<em>x</em>/<em>L</em>) &middot; cos(<em>k</em>&pi;<em>ct</em>/<em>L</em>)</p>
+      <p>Sie schwingt also mit der Frequenz <em>k</em>&middot;<em>c</em>/(2<em>L</em>), einem ganzzahligen Vielfachen des Grundtons.
+        Für den Ton &#9834; bleibt nur der zeitliche Teil: Jede Mode trägt mit ihrer Amplitude <em>c<sub>k</sub></em> bei, und der Grundton <em>c</em>/(2<em>L</em>) wird auf 220&nbsp;Hz gesetzt:</p>
+      <p class="eq"><em>p</em>(<em>t</em>) = &sum;<sub><em>k</em>=1</sub><sup><em>n</em></sup> <em>c<sub>k</sub></em> cos(2&pi; &middot; <em>k</em>&middot;220&nbsp;Hz &middot; <em>t</em>)</p>
+      <p>Das Vorzeichen von <em>c<sub>k</sub></em> ist nur eine Phase und nicht hörbar. Die Gesamtlautstärke wird normiert.</p>
+      <div class="tw"><table>
+        <thead><tr><th><em>k</em></th><th>Mode</th><th><em>c<sub>k</sub></em></th><th>Frequenz</th><th>Ton</th><th>Stärke</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table></div>
+    </div>
+  </details>
+</div>
+
+<script>
+(() => {
+const L = 1, C = 1, M = 800, NMAX = 50, TMAX = 2 * L / C;
+const XMIN = -0.5, XMAX = 1.5, YMIN = -1.5, YMAX = 1.5;
+const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+const COL = { u: css('--u'), s: css('--s'), h: css('--h'), f0: css('--f0'), r: css('--r'), l: css('--l') };
+
+const f = new Float64Array(M + 1);
+const coef = new Float64Array(NMAX + 1);
+const st = {
+  mode: 'F', preset: 'tri', apex: { x: 0.35, y: 1 }, t: 0, n: 5, playing: false, rate: 0.2,
+  show: { u: true, s: true, h: true, r: true, l: true, f0: false }
+};
+let dirty = true;                      // coefficients or n changed -> refresh sound + table
+
+/* ---------- initial data ---------- */
+const shapes = {
+  tri:   (x, a = st.apex) => x < a.x ? a.y * x / a.x : a.y * (L - x) / (L - a.x),
+  box:   x => Math.abs(x - 0.5 * L) < 0.15 * L ? 0.8 : 0,
+  gauss: x => Math.exp(-Math.pow((x - 0.3 * L) / (0.06 * L), 2)) * Math.sin(Math.PI * x / L) ** 0.2,
+  sine:  x => 0.9 * Math.sin(Math.PI * x / L),
+  draw:  () => 0
+};
+function loadPreset(p) {
+  st.preset = p;
+  const g = shapes[p];
+  for (let i = 0; i <= M; i++) f[i] = g(i * L / M);
+  f[0] = f[M] = 0;
+  computeCoef();
+  document.querySelectorAll('#presets button').forEach(b => b.classList.toggle('on', b.dataset.p === p));
+}
+function computeCoef() {
+  const dx = L / M;
+  for (let k = 1; k <= NMAX; k++) {
+    let s = 0;
+    for (let i = 1; i < M; i++) s += f[i] * Math.sin(k * Math.PI * i / M);
+    coef[k] = 2 / L * s * dx;           // trapezoid, endpoints are 0
+  }
+  dirty = true;
+}
+
+/* ---------- functions ---------- */
+function fval(x) {                     // x in [0,L], linear interpolation
+  const p = x / L * M, i = Math.min(M - 1, Math.max(0, Math.floor(p))), a = p - i;
+  return f[i] * (1 - a) + f[i + 1] * a;
+}
+function fstar(x) {                    // odd, 2L-periodic extension
+  const P = 2 * L;
+  let y = ((x % P) + P) % P;
+  return y <= L ? fval(y) : -fval(P - y);
+}
+const uExact = (x, t) => 0.5 * (fstar(x - C * t) + fstar(x + C * t));
+function SN(x, t) {
+  let s = 0;
+  for (let k = 1; k <= st.n; k++) s += coef[k] * Math.sin(k * Math.PI * x / L) * Math.cos(k * Math.PI * C * t / L);
+  return s;
+}
+
+/* ---------- canvas setup ---------- */
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+let W = 0, H = 0;
+const pad = { l: 40, r: 12, t: 10, b: 24 };
+function fit(c, c2d, w, h) {
+  const d = window.devicePixelRatio || 1;
+  c.width = Math.round(w * d); c.height = Math.round(h * d);
+  c.style.height = h + 'px';
+  c2d.setTransform(d, 0, 0, d, 0, 0);
+}
+function resize() {
+  W = cv.clientWidth; H = Math.round(Math.max(240, Math.min(500, W * 0.5)));
+  fit(cv, ctx, W, H);
+  drawThumbs(); draw();
+}
+const X = x => pad.l + (x - XMIN) / (XMAX - XMIN) * (W - pad.l - pad.r);
+const Y = y => pad.t + (YMAX - y) / (YMAX - YMIN) * (H - pad.t - pad.b);
+const iX = px => XMIN + (px - pad.l) / (W - pad.l - pad.r) * (XMAX - XMIN);
+const iY = py => YMAX - (py - pad.t) / (H - pad.t - pad.b) * (YMAX - YMIN);
+
+function curve(fn, a, b, col, lw, dash) {
+  const n = Math.max(2, Math.ceil((X(b) - X(a)) * 2));
+  ctx.beginPath();
+  for (let i = 0; i <= n; i++) {
+    const x = a + (b - a) * i / n, px = X(x), py = Y(fn(x));
+    i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+  }
+  ctx.setLineDash(dash || []);
+  ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+/* ---------- main plot ---------- */
+function draw() {
+  const t = st.t;
+  ctx.clearRect(0, 0, W, H);
+  const x0 = X(XMIN), x1 = X(XMAX), y0 = Y(YMAX), y1 = Y(YMIN);
+
+  ctx.fillStyle = '#fff'; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+  ctx.fillStyle = '#f3f4f6';
+  ctx.fillRect(x0, y0, X(0) - x0, y1 - y0);
+  ctx.fillRect(X(L), y0, x1 - X(L), y1 - y0);
+
+  // grid
+  ctx.lineWidth = 1; ctx.strokeStyle = '#e8ebee'; ctx.beginPath();
+  for (let x = XMIN; x <= XMAX + 1e-9; x += 0.25) { const p = Math.round(X(x)) + .5; ctx.moveTo(p, y0); ctx.lineTo(p, y1); }
+  for (let y = YMIN; y <= YMAX + 1e-9; y += 0.5) { const p = Math.round(Y(y)) + .5; ctx.moveTo(x0, p); ctx.lineTo(x1, p); }
+  ctx.stroke();
+  ctx.strokeStyle = '#b9c0c8'; ctx.beginPath();
+  let p = Math.round(Y(0)) + .5; ctx.moveTo(x0, p); ctx.lineTo(x1, p);
+  p = Math.round(X(0)) + .5; ctx.moveTo(p, y0); ctx.lineTo(p, y1);
+  p = Math.round(X(L)) + .5; ctx.moveTo(p, y0); ctx.lineTo(p, y1);
+  ctx.stroke();
+  ctx.strokeStyle = '#cdd2d8'; ctx.strokeRect(Math.round(x0) + .5, Math.round(y0) + .5, Math.round(x1 - x0), Math.round(y1 - y0));
+
+  // tick labels
+  ctx.fillStyle = '#8b939d'; ctx.font = '10.5px "Lucida Grande","Helvetica Neue",Arial,sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let x = XMIN; x <= XMAX + 1e-9; x += 0.25) {
+    if (W < 520 && Math.abs(x * 2 - Math.round(x * 2)) > 1e-9) continue;
+    ctx.fillText(+x.toFixed(2) + '', X(x), y1 + 6);
+  }
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let y = YMIN; y <= YMAX + 1e-9; y += 0.5) ctx.fillText(+y.toFixed(1) + '', x0 - 6, Y(y));
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x0, y0, x1 - x0, y1 - y0); ctx.clip();
+
+  if (st.show.f0) curve(fval, 0, L, COL.f0, 1.5, [5, 4]);
+
+  if (st.mode === 'F') {
+    if (st.show.h) {
+      for (let k = 1; k <= st.n; k++) {
+        const a = coef[k] * Math.cos(k * Math.PI * C * t / L);
+        if (Math.abs(coef[k]) < 1e-4) continue;
+        curve(x => a * Math.sin(k * Math.PI * x / L), 0, L, COL.h, 1);
+      }
+    }
+    if (st.show.u) curve(x => uExact(x, t), 0, L, COL.u, 2.5);
+    if (st.show.s) curve(x => SN(x, t), 0, L, COL.s, 2);
+  } else {
+    if (st.show.r) curve(x => 0.5 * fstar(x - C * t), XMIN, XMAX, COL.r, 2);
+    if (st.show.l) curve(x => 0.5 * fstar(x + C * t), XMIN, XMAX, COL.l, 2);
+    if (st.show.u) curve(x => uExact(x, t), 0, L, COL.u, 2.5);
+  }
+  ctx.restore();
+
+  // fixed ends
+  ctx.fillStyle = '#2b3340';
+  for (const x of [0, L]) { ctx.beginPath(); ctx.arc(X(x), Y(0), 3.5, 0, 7); ctx.fill(); }
+
+  // apex handle
+  if (st.preset === 'tri') {
+    const hx = X(st.apex.x), hy = Y(st.apex.y), r = 6;
+    ctx.beginPath(); ctx.moveTo(hx, hy - r); ctx.lineTo(hx + r, hy); ctx.lineTo(hx, hy + r); ctx.lineTo(hx - r, hy); ctx.closePath();
+    ctx.fillStyle = t === 0 ? '#3a6ec0' : '#fff'; ctx.fill();
+    ctx.strokeStyle = '#3a6ec0'; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+}
+
+/* ---------- preset thumbnails ---------- */
+function drawThumbs() {
+  document.querySelectorAll('#presets button').forEach(b => {
+    const c = b.querySelector('canvas'), g = c.getContext('2d'), w = 40, h = 22, d = window.devicePixelRatio || 1;
+    c.width = w * d; c.height = h * d; g.setTransform(d, 0, 0, d, 0, 0);
+    g.clearRect(0, 0, w, h);
+    g.strokeStyle = '#c3c8cf'; g.lineWidth = 1; g.beginPath(); g.moveTo(2, h - 4.5); g.lineTo(w - 2, h - 4.5); g.stroke();
+    g.strokeStyle = '#3a4656'; g.lineWidth = 1.5; g.lineJoin = 'round'; g.beginPath();
+    const p = b.dataset.p;
+    if (p === 'draw') {
+      g.moveTo(4, h - 5); g.bezierCurveTo(10, 0, 16, 18, 22, 8); g.bezierCurveTo(27, 1, 32, 10, 36, h - 5);
+    } else {
+      const fn = p === 'tri' ? (x => shapes.tri(x, { x: 0.35, y: 1 })) : shapes[p];
+      for (let i = 0; i <= 60; i++) { const x = i / 60, px = 4 + x * (w - 8), py = h - 4.5 - fn(x) * (h - 8) / 1.0; i ? g.lineTo(px, py) : g.moveTo(px, py); }
+    }
+    g.stroke();
+  });
+}
+
+/* ---------- UI ---------- */
+const $ = id => document.getElementById(id);
+const tIn = $('t'), tv = $('tv'), nIn = $('n'), nv = $('nv'), play = $('play');
+
+function setT(t) { st.t = t; tIn.value = t; tv.textContent = t.toFixed(2); }
+function setPlaying(on) { st.playing = on; play.innerHTML = on ? '&#10074;&#10074;' : '&#9654;'; play.classList.toggle('on', on); if (on) last = null; }
+function setMode(m) {
+  st.mode = m;
+  $('mF').classList.toggle('on', m === 'F'); $('mD').classList.toggle('on', m === 'D');
+  document.querySelectorAll('[data-only]').forEach(el => el.hidden = el.dataset.only !== m);
+  resize();
+}
+
+$('mF').onclick = () => setMode('F');
+$('mD').onclick = () => setMode('D');
+document.querySelectorAll('#presets button').forEach(b => b.onclick = () => { setPlaying(false); setT(0); loadPreset(b.dataset.p); draw(); });
+play.onclick = () => setPlaying(!st.playing);
+$('reset').onclick = () => { setPlaying(false); setT(0); draw(); };
+tIn.oninput = () => { setPlaying(false); setT(+tIn.value); draw(); };
+nIn.oninput = () => { st.n = +nIn.value; nv.textContent = st.n; dirty = true; draw(); };
+
+/* ---------- sound: sustained tone from c_1..c_n ---------- */
+const F0 = 220, VOL = 0.2, snd = $('snd');
+let actx = null, osc = null, gain = null, soundOn = false;
+function updateSound() {
+  if (!actx) return;
+  const n = st.n, re = new Float32Array(n + 1), im = new Float32Array(n + 1);
+  let mx = 0;
+  for (let k = 1; k <= n; k++) { re[k] = coef[k]; mx = Math.max(mx, Math.abs(coef[k])); }   // cos partials
+  const now = actx.currentTime;
+  if (mx > 1e-6) osc.setPeriodicWave(actx.createPeriodicWave(re, im));
+  gain.gain.setTargetAtTime(soundOn && mx > 1e-6 ? VOL : 0, now, 0.03);
+}
+snd.onclick = () => {
+  if (!actx) {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    gain = actx.createGain(); gain.gain.value = 0;
+    osc = actx.createOscillator(); osc.frequency.value = F0;
+    osc.connect(gain).connect(actx.destination); osc.start();
+  }
+  actx.resume();
+  soundOn = !soundOn; snd.classList.toggle('on', soundOn);
+  updateSound();
+};
+
+/* ---------- decomposition table ---------- */
+const info = $('info'), tbody = $('tbody');
+const NOTES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'H'];
+function noteName(fr) {
+  const m = 69 + 12 * Math.log2(fr / 440), r = Math.round(m), ct = Math.round((m - r) * 100);
+  return NOTES[((r % 12) + 12) % 12] + (Math.floor(r / 12) - 1) + (ct ? ` <span style="color:#8b939d">${ct > 0 ? '+' : '−'}${Math.abs(ct)}&thinsp;ct</span>` : '');
+}
+function modePath(k, a) {               // a in [-1,1]: scaled c_k sin(kπx)
+  let d = '';
+  for (let i = 0; i <= 64; i++) { const x = i / 64; d += (i ? 'L' : 'M') + (2 + x * 56).toFixed(1) + ' ' + (9 - 7 * a * Math.sin(k * Math.PI * x)).toFixed(1); }
+  return `<svg width="60" height="18" viewBox="0 0 60 18"><line x1="2" y1="9" x2="58" y2="9" stroke="#d5d9de"/><path d="${d}" fill="none" stroke="#3a4656" stroke-width="1.2"/></svg>`;
+}
+function renderInfo() {
+  let mx = 1e-12; for (let k = 1; k <= st.n; k++) mx = Math.max(mx, Math.abs(coef[k]));
+  let h = '';
+  for (let k = 1; k <= st.n; k++) {
+    const c = coef[k], rel = Math.abs(c) / mx, fr = k * F0;
+    h += `<tr><td>${k}</td><td>${modePath(k, c / mx)}</td><td>${c >= 0 ? '' : '−'}${Math.abs(c).toFixed(4)}</td>` +
+         `<td>${fr}&nbsp;Hz</td><td>${noteName(fr)}</td>` +
+         `<td><div class="amp" style="width:${(rel * 100).toFixed(1)}%"></div></td></tr>`;
+  }
+  tbody.innerHTML = h;
+}
+info.addEventListener('toggle', () => { if (info.open) renderInfo(); });
+$('sp').oninput = e => { st.rate = 0.02 * Math.pow(10, e.target.value / 50); };
+document.querySelectorAll('#legend input').forEach(i => i.onchange = () => { st.show[i.dataset.k] = i.checked; draw(); });
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !/INPUT|BUTTON/.test(e.target.tagName)) { e.preventDefault(); setPlaying(!st.playing); }
+});
+
+/* ---------- drawing / dragging on the plot ---------- */
+let drag = null, lastPt = null;
+function local(e) { const r = cv.getBoundingClientRect(); return { px: e.clientX - r.left, py: e.clientY - r.top }; }
+function nearApex(p) { return st.preset === 'tri' && Math.hypot(p.px - X(st.apex.x), p.py - Y(st.apex.y)) < 14; }
+function inString(p) { const x = iX(p.px); return x >= 0 && x <= L && p.py >= Y(YMAX) && p.py <= Y(YMIN); }
+function paint(p) {
+  const x = Math.min(L, Math.max(0, iX(p.px))), y = Math.max(-1.4, Math.min(1.4, iY(p.py)));
+  const i = Math.round(x / L * M);
+  if (lastPt) {
+    const a = Math.min(i, lastPt.i), b = Math.max(i, lastPt.i);
+    for (let j = a; j <= b; j++) {
+      const s = b === a ? 1 : (j - lastPt.i) / (i - lastPt.i);
+      f[j] = lastPt.y + (y - lastPt.y) * s;
+    }
+  } else f[i] = y;
+  f[0] = f[M] = 0;
+  lastPt = { i, y };
+  computeCoef();
+}
+cv.addEventListener('pointerdown', e => {
+  const p = local(e);
+  if (nearApex(p)) drag = 'apex';
+  else if (inString(p)) {
+    drag = 'draw'; lastPt = null;
+    if (st.preset !== 'draw') { st.preset = 'draw'; document.querySelectorAll('#presets button').forEach(b => b.classList.toggle('on', b.dataset.p === 'draw')); }
+    paint(p);
+  } else return;
+  setPlaying(false); setT(0);
+  cv.setPointerCapture(e.pointerId);
+  draw();
+});
+cv.addEventListener('pointermove', e => {
+  const p = local(e);
+  if (!drag) { cv.style.cursor = nearApex(p) ? 'move' : inString(p) ? 'crosshair' : 'default'; return; }
+  if (drag === 'apex') {
+    st.apex.x = Math.min(0.97 * L, Math.max(0.03 * L, iX(p.px)));
+    st.apex.y = Math.max(-1.4, Math.min(1.4, iY(p.py)));
+    loadPreset('tri');
+  } else paint(p);
+  draw();
+});
+const end = () => { drag = null; lastPt = null; };
+cv.addEventListener('pointerup', end);
+cv.addEventListener('pointercancel', end);
+
+/* ---------- animation ---------- */
+let last = null;
+function tick(ts) {
+  if (dirty) { dirty = false; updateSound(); if (info.open) renderInfo(); }
+  if (st.playing) {
+    if (last !== null) setT((st.t + (ts - last) / 1000 * st.rate) % TMAX);
+    last = ts;
+    draw();
+  }
+  requestAnimationFrame(tick);
+}
+
+window.addEventListener('resize', resize);
+loadPreset('tri');
+setMode('F');
+requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
