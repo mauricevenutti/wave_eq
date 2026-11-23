@@ -32,6 +32,8 @@ button:focus-visible{outline:2px solid #7aa7e6;outline-offset:1px}
 .seg button.on{color:#fff;text-shadow:0 -1px 0 rgba(0,0,0,.3);
   background:linear-gradient(#6c9fe0,#3a6ec0);box-shadow:inset 0 1px 2px rgba(0,0,0,.25)}
 
+.seg.win button{min-width:0;padding:4px 10px;font-family:Georgia,"Times New Roman",serif}
+.bar>.seg.win{margin-right:auto}
 button.thumb{padding:2px 4px;line-height:0}
 button.thumb canvas{width:40px;height:22px}
 
@@ -94,6 +96,9 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bor
   <div class="bar">
     <div class="seg" role="tablist">
       <button id="mF" class="on">Fourier</button><button id="mD">Wellenausbreitung</button>
+    </div>
+    <div class="seg win" title="Sichtbarer Ausschnitt">
+      <button id="wN" class="on">&minus;&frac12;<em>L</em> … &sup3;&frasl;&#8322;<em>L</em></button><button id="wW">&minus;<em>L</em> … 3<em>L</em></button>
     </div>
     <div class="group" style="flex-wrap:wrap;gap:14px">
       <div class="group" id="instr">
@@ -158,7 +163,8 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bor
 <script>
 (() => {
 const L = 1, C = 1, M = 800, NMAX = 50, TMAX = 2 * L / C;
-const XMIN = -0.5, XMAX = 1.5, YMIN = -1.5, YMAX = 1.5;
+const YMIN = -1.5, YMAX = 1.5;
+let XMIN = -0.5, XMAX = 1.5, wide = false;   // window: [-L/2, 3L/2] or [-L, 3L]
 const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
 const COL = { u: css('--u'), s: css('--s'), h: css('--h'), f0: css('--f0'), r: css('--r'), l: css('--l') };
 
@@ -262,6 +268,17 @@ function curve(fn, a, b, col, lw, dash) {
   ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.stroke();
   ctx.setLineDash([]);
 }
+/* curve on the string [0,L]; in the wide window additionally its odd 2L-periodic
+   continuation, drawn faintly over the whole visible range */
+function curveExt(fn, col, lw, dash) {
+  if (wide) {
+    ctx.globalAlpha = 0.35;
+    curve(fn, XMIN, 0, col, lw, dash);
+    curve(fn, L, XMAX, col, lw, dash);
+    ctx.globalAlpha = 1;
+  }
+  curve(fn, 0, L, col, lw, dash);
+}
 
 /* ---------- main plot ---------- */
 function draw() {
@@ -275,22 +292,25 @@ function draw() {
   ctx.fillRect(X(L), y0, x1 - X(L), y1 - y0);
 
   // grid
+  const gx = wide ? 0.5 : 0.25;
   ctx.lineWidth = 1; ctx.strokeStyle = '#e8ebee'; ctx.beginPath();
-  for (let x = XMIN; x <= XMAX + 1e-9; x += 0.25) { const p = Math.round(X(x)) + .5; ctx.moveTo(p, y0); ctx.lineTo(p, y1); }
+  for (let x = XMIN; x <= XMAX + 1e-9; x += gx) { const p = Math.round(X(x)) + .5; ctx.moveTo(p, y0); ctx.lineTo(p, y1); }
   for (let y = YMIN; y <= YMAX + 1e-9; y += 0.5) { const p = Math.round(Y(y)) + .5; ctx.moveTo(x0, p); ctx.lineTo(x1, p); }
   ctx.stroke();
   ctx.strokeStyle = '#b9c0c8'; ctx.beginPath();
   let p = Math.round(Y(0)) + .5; ctx.moveTo(x0, p); ctx.lineTo(x1, p);
-  p = Math.round(X(0)) + .5; ctx.moveTo(p, y0); ctx.lineTo(p, y1);
-  p = Math.round(X(L)) + .5; ctx.moveTo(p, y0); ctx.lineTo(p, y1);
+  for (let k = Math.ceil(XMIN / L); k * L <= XMAX + 1e-9; k++) {   // multiples of L: 0, L (and -L, 2L, 3L)
+    p = Math.round(X(k * L)) + .5; ctx.moveTo(p, y0); ctx.lineTo(p, y1);
+  }
   ctx.stroke();
   ctx.strokeStyle = '#cdd2d8'; ctx.strokeRect(Math.round(x0) + .5, Math.round(y0) + .5, Math.round(x1 - x0), Math.round(y1 - y0));
 
   // tick labels
   ctx.fillStyle = '#8b939d'; ctx.font = '10.5px "Lucida Grande","Helvetica Neue",Arial,sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  for (let x = XMIN; x <= XMAX + 1e-9; x += 0.25) {
-    if (W < 520 && Math.abs(x * 2 - Math.round(x * 2)) > 1e-9) continue;
+  const lx = (W < 520 ? 2 : 1) * gx;
+  for (let x = XMIN; x <= XMAX + 1e-9; x += gx) {
+    if (Math.abs(x / lx - Math.round(x / lx)) > 1e-9) continue;
     ctx.fillText(+x.toFixed(2) + '', X(x), y1 + 6);
   }
   ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
@@ -299,28 +319,31 @@ function draw() {
   ctx.save();
   ctx.beginPath(); ctx.rect(x0, y0, x1 - x0, y1 - y0); ctx.clip();
 
-  if (st.show.f0) curve(fval, 0, L, COL.f0, 1.5, [5, 4]);
+  if (st.show.f0) curveExt(fstar, COL.f0, 1.5, [5, 4]);
 
   if (st.mode === 'F') {
     if (st.show.h) {
       for (let k = 1; k <= st.n; k++) {
         const a = coef[k] * Math.cos(k * Math.PI * C * t / L);
         if (Math.abs(coef[k]) < 1e-4) continue;
-        curve(x => a * Math.sin(k * Math.PI * x / L), 0, L, COL.h, 1);
+        curveExt(x => a * Math.sin(k * Math.PI * x / L), COL.h, 1);
       }
     }
-    if (st.show.u) curve(x => uExact(x, t), 0, L, COL.u, 2.5);
-    if (st.show.s) curve(x => SN(x, t), 0, L, COL.s, 2);
+    if (st.show.u) curveExt(x => uExact(x, t), COL.u, 2.5);
+    if (st.show.s) curveExt(x => SN(x, t), COL.s, 2);
   } else {
     if (st.show.r) curve(x => 0.5 * fstar(x - C * t), XMIN, XMAX, COL.r, 2);
     if (st.show.l) curve(x => 0.5 * fstar(x + C * t), XMIN, XMAX, COL.l, 2);
-    if (st.show.u) curve(x => uExact(x, t), 0, L, COL.u, 2.5);
+    if (st.show.u) curveExt(x => uExact(x, t), COL.u, 2.5);
   }
   ctx.restore();
 
-  // fixed ends
-  ctx.fillStyle = '#2b3340';
-  for (const x of [0, L]) { ctx.beginPath(); ctx.arc(X(x), Y(0), 3.5, 0, 7); ctx.fill(); }
+  // fixed ends (solid); in the wide window the further zeros of the extension (hollow)
+  ctx.fillStyle = '#2b3340'; ctx.strokeStyle = '#2b3340'; ctx.lineWidth = 1.2;
+  for (let k = Math.ceil(XMIN / L); k * L <= XMAX + 1e-9; k++) {
+    ctx.beginPath(); ctx.arc(X(k * L), Y(0), 3.5, 0, 7);
+    if (k === 0 || k === 1) ctx.fill(); else { ctx.fillStyle = '#fff'; ctx.fill(); ctx.stroke(); ctx.fillStyle = '#2b3340'; }
+  }
 
   // apex handle
   if (st.preset === 'tri') {
@@ -363,6 +386,14 @@ function setMode(m) {
   resize();
 }
 
+function setWindow(w) {
+  wide = w;
+  [XMIN, XMAX] = w ? [-L, 3 * L] : [-0.5 * L, 1.5 * L];
+  $('wN').classList.toggle('on', !w); $('wW').classList.toggle('on', w);
+  draw();
+}
+$('wN').onclick = () => setWindow(false);
+$('wW').onclick = () => setWindow(true);
 $('mF').onclick = () => setMode('F');
 $('mD').onclick = () => setMode('D');
 document.querySelectorAll('button[data-p]').forEach(b => b.onclick = () => { setPlaying(false); setT(0); loadPreset(b.dataset.p); draw(); });
